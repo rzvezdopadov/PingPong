@@ -1,0 +1,37 @@
+body {
+    position: relative;
+    background-color: #000000;
+    text-align: center;
+}
+
+canvas {
+	margin:3px;
+	border: 2px solid #6eeb48;
+}
+
+.tableInfo {
+    border: 2px solid chartreuse;
+    margin: auto;
+}
+
+tr, td {
+    border: 2px solid chartreuse;
+    color: aliceblue;
+    width: 150px;
+}
+
+input[type="button"] {
+    margin: 2px;
+    padding: 5px;
+    border: 2px solid chartreuse;
+    border-radius: 10px;
+    color: cornsilk;
+    background: linear-gradient(to top, #2d661b 0%, #000000 50%, #4fa834 100%);
+}
+
+input[type="button"]:hover {background: linear-gradient(to top, #4fa834 0%, #000000 50%, #2d661b 100%);}
+
+label {
+    color: aliceblue;
+}
+

@@ -18,8 +18,10 @@ let state = {
 	clientMinY: 0,
 	clientMaxX: 600,
     clientMaxY: 800,
-// Size let
-    sizeLet: 20,
+    coefficientSpeed: 100,
+// Size barrier
+    sizeBarrier: 20,
+    amountBarrierOnLevel: 5,
 // Parameters rocket
     racketPos: 350,
     racketLong: 100,
@@ -36,22 +38,6 @@ let state = {
 // Levels
     stage: 1,
     currentStage: [],
-    stages: [],
-    render: () => {
-        let canvas = getElem("App");
-        let ctx = canvas.getContext("2d");
-
-        ctx.fillStyle = "#000";
-		ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.fillStyle = "#FFF";
-        ctx.fillRect(state.racketPos-state.racketLong, state.clientMaxY - state.racketDepth - 3, state.racketLong, state.racketDepth);
-
-        ctx.beginPath();
-        ctx.fillStyle = "#5aecf1";
-        ctx.arc(state.ballPosX, state.ballPosY,state.ballSize/2,0,finalRad,true);
-        ctx.fill();
-    }
 }
 
 window.onload = () => {
@@ -100,7 +86,7 @@ window.onload = () => {
 }
 
 setInterval(() => {
-    state.render();
+    render();
 }
  ,1000/state.renderFrame);
 
@@ -108,6 +94,7 @@ let btnStartOnClick = () => {
     if (state.statusGame === typeGameStop) {
         state.statusGame = typeGamePlay;
         setValue("btnStart","Pause");
+        btnNewGame();
     } else if (state.statusGame === typeGamePlay) {
         state.statusGame = typeGamePause;
         setValue("btnStart","Start");
@@ -117,9 +104,110 @@ let btnStartOnClick = () => {
     } 
 }
 
+let render = () => {
+    let canvas = getElem("App");
+    let ctx = canvas.getContext("2d");
+
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "#FFF";
+    ctx.fillRect(state.racketPos-state.racketLong, state.clientMaxY - state.racketDepth - 3, state.racketLong, state.racketDepth);
+
+    ctx.beginPath();
+    ctx.fillStyle = "#5aecf1";
+    ctx.arc(state.ballPosX, state.ballPosY,state.ballSize/2,0,finalRad,true);
+    ctx.fill();
+
+    if (state.statusGame === typeGamePlay) {
+        moveBall();
+        collisionWall();
+    }
+}
+
+let btnNewGame = () => {
+    if (state.racketPos > state.clientMaxX/2) {
+        state.ballRoute = routeBallTopLeft;
+    } else {
+        state.ballRoute = routeBallTopRight;
+    }
+    
+    state.ballSpeedX = state.stage * state.coefficientSpeed;
+    state.ballSpeedY = state.stage * state.coefficientSpeed;
+    setInner("speedGame","Speed: "+state.ballSpeedX);
+    setInner("levelGame","Level: "+state.stage);
+    for (let i=0;i<state.stage*state.amountBarrierOnLevel;i++) {
+        createNewBarrierBox();
+    }
+}
+
 let btnStop = () => {
     state.statusGame = typeGameStop;
     state.currentStage = [];
+    state.ballSpeedX = 0;
+    state.ballSpeedY = 0;
+    setInner("speedGame","Speed: "+state.ballSpeedX);
+}
+
+let moveBall = () => {
+    let speedX = nDouble(state.ballSpeedX/state.renderFrame,3);
+    let speedY = nDouble(state.ballSpeedY/state.renderFrame,3);
+
+    if (state.ballRoute === routeBallTopLeft) {
+        state.ballPosX -= nDouble(state.ballSpeedX/state.renderFrame,3);  
+        state.ballPosY -= nDouble(state.ballSpeedY/state.renderFrame,3);
+    } else if (state.ballRoute === routeBallTopRight) {
+        state.ballPosX += nDouble(state.ballSpeedX/state.renderFrame,3);  
+        state.ballPosY -= nDouble(state.ballSpeedY/state.renderFrame,3);
+    } else if (state.ballRoute === routeBallBottomLeft) {
+        state.ballPosX -= nDouble(state.ballSpeedX/state.renderFrame,3);  
+        state.ballPosY += nDouble(state.ballSpeedY/state.renderFrame,3);
+    } else if (state.ballRoute === routeBallBottomRight) {
+        state.ballPosX += nDouble(state.ballSpeedX/state.renderFrame,3);  
+        state.ballPosY += nDouble(state.ballSpeedY/state.renderFrame,3);
+    }
+}
+
+let collisionWall = () => {
+    if (state.ballPosX > state.clientMaxX-state.ballSize/2) {
+        if (state.ballRoute === routeBallTopRight) {
+            state.ballRoute = routeBallTopLeft;
+        } else {
+            state.ballRoute = routeBallBottomLeft;
+        }
+    } else if (state.ballPosX < state.ballSize/2) {
+        if (state.ballRoute === routeBallTopLeft) {
+            state.ballRoute = routeBallTopRight;
+        } else {
+            state.ballRoute = routeBallBottomRight;
+        }
+    } else if (state.ballPosY > state.clientMaxY-state.ballSize/2) {
+        if (state.ballRoute === routeBallBottomLeft) {
+            state.ballRoute = routeBallTopLeft;
+        } else {
+            state.ballRoute = routeBallTopRight;
+        }
+    } else if (state.ballPosY < state.ballSize/2) {
+        if (state.ballRoute === routeBallTopLeft) {
+            state.ballRoute = routeBallBottomLeft;
+        } else {
+            state.ballRoute = routeBallBottomRight;
+        }
+    }
+}
+
+let createNewBarrierBox = () => {
+    // state.sizeBarrier
+}
+
+let nRand = (a) => {
+	return Math.floor(Math.random()*a);
+}
+
+let nDouble = (a,b) => {
+	if (b < 0) {b = 0;}
+	let c = Math.pow(10,b);
+	return Math.floor(a * c)/c;
 }
 
 let setLevel = (a) => {setInner("levelGame","Level: "+a);}

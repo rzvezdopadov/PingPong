@@ -18,9 +18,10 @@ let state = {
 	clientMinY: 0,
 	clientMaxX: 600,
     clientMaxY: 800,
-    coefficientSpeed: 100,
-// Size barrier
-    sizeBarrier: 20,
+    coefficientSpeed: 40,
+// barrier
+    sizeBarrier: 40,
+    healthbarrierOnLevel: 100,
     amountBarrierOnLevel: 5,
 // Parameters rocket
     racketPos: 350,
@@ -36,7 +37,7 @@ let state = {
     ballSpeedY: 0,
     ballRoute: routeBallTopRight,
 // Levels
-    stage: 1,
+    stage: 5,
     currentStage: [],
 }
 
@@ -44,6 +45,8 @@ window.onload = () => {
     let canvas = getElem("App");
     canvas.width = state.clientMaxX;
     canvas.height = state.clientMaxY;
+    createNewStage();
+
     canvas.onmousemove = (e) => {
         let pos = e.offsetX+state.racketLong/2;
         if (pos > state.clientMaxX) {
@@ -70,18 +73,21 @@ window.onload = () => {
     getElem("btnStop").onclick = () => {
         btnStop();
         setValue("btnStart","Start");
+        createNewStage();
     }
 
     getElem("btnPreviousStage").onclick = () => {
         btnStop();
         if (--state.stage < 1) {state.stage = 10;}
         setLevel(state.stage);
+        createNewStage();
     }
 
     getElem("btnNextStage").onclick = () => {
         btnStop();
         state.stage++;
         setLevel(state.stage);
+        createNewStage();
     }
 }
 
@@ -108,20 +114,36 @@ let render = () => {
     let canvas = getElem("App");
     let ctx = canvas.getContext("2d");
 
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    let drawFigures = () => {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillStyle = "#FFF";
-    ctx.fillRect(state.racketPos-state.racketLong, state.clientMaxY - state.racketDepth - 3, state.racketLong, state.racketDepth);
+        ctx.fillStyle = "#FFF";
+        ctx.fillRect(state.racketPos-state.racketLong, state.clientMaxY - state.racketDepth - 3, state.racketLong, state.racketDepth);
 
-    ctx.beginPath();
-    ctx.fillStyle = "#5aecf1";
-    ctx.arc(state.ballPosX, state.ballPosY,state.ballSize/2,0,finalRad,true);
-    ctx.fill();
+        for (let i=0;i<state.currentStage.length;i++) {
+            ctx.strokeStyle = "#6eeb48";
+            ctx.strokeRect(state.currentStage[i].barrierPosX*state.sizeBarrier, state.currentStage[i].barrierPosY*state.sizeBarrier, state.sizeBarrier, state.sizeBarrier);
+
+            ctx.textAlign="center";
+            ctx.textBaseline="middle";
+            ctx.font="15px Arial";
+            ctx.fillText(state.currentStage[i].barrierHealth,state.currentStage[i].barrierPosX*state.sizeBarrier+state.sizeBarrier/2,state.currentStage[i].barrierPosY*state.sizeBarrier+state.sizeBarrier/2);
+        }
+
+        ctx.beginPath();
+        ctx.fillStyle = "#5aecf1";
+        ctx.arc(state.ballPosX, state.ballPosY,state.ballSize/2,0,finalRad,true);
+        ctx.fill();
+    }
+
+    drawFigures();
 
     if (state.statusGame === typeGamePlay) {
         moveBall();
+    //    drawFigures();
         collisionWall();
+        collisionBarrier();
     }
 }
 
@@ -132,18 +154,14 @@ let btnNewGame = () => {
         state.ballRoute = routeBallTopRight;
     }
     
-    state.ballSpeedX = state.stage * state.coefficientSpeed;
-    state.ballSpeedY = state.stage * state.coefficientSpeed;
+    state.ballSpeedX = 500 + state.stage * state.coefficientSpeed;
+    state.ballSpeedY = 500 + state.stage * state.coefficientSpeed;
     setInner("speedGame","Speed: "+state.ballSpeedX);
     setInner("levelGame","Level: "+state.stage);
-    for (let i=0;i<state.stage*state.amountBarrierOnLevel;i++) {
-        createNewBarrierBox();
-    }
 }
 
 let btnStop = () => {
     state.statusGame = typeGameStop;
-    state.currentStage = [];
     state.ballSpeedX = 0;
     state.ballSpeedY = 0;
     setInner("speedGame","Speed: "+state.ballSpeedX);
@@ -169,34 +187,144 @@ let moveBall = () => {
 }
 
 let collisionWall = () => {
-    if (state.ballPosX > state.clientMaxX-state.ballSize/2) {
+    let radiusBall = state.ballSize/2;
+    if (state.ballPosX >= state.clientMaxX-radiusBall) {
         if (state.ballRoute === routeBallTopRight) {
             state.ballRoute = routeBallTopLeft;
+            state.ballPosY += Math.abs(state.ballPosX - (state.clientMaxX-radiusBall));
         } else {
             state.ballRoute = routeBallBottomLeft;
+            state.ballPosY -= Math.abs(state.ballPosX - (state.clientMaxX-radiusBall));
         }
-    } else if (state.ballPosX < state.ballSize/2) {
+
+        state.ballPosX -= Math.abs(state.ballPosX - (state.clientMaxX-radiusBall));
+    } else if (state.ballPosX <= radiusBall) {
         if (state.ballRoute === routeBallTopLeft) {
             state.ballRoute = routeBallTopRight;
+            state.ballPosY += Math.abs(state.ballPosX-radiusBall);
         } else {
             state.ballRoute = routeBallBottomRight;
+            state.ballPosY -= Math.abs(state.ballPosX-radiusBall);
         }
-    } else if (state.ballPosY > state.clientMaxY-state.ballSize/2) {
+        state.ballPosX += Math.abs(state.ballPosX-radiusBall);
+    } else if (state.ballPosY >= state.clientMaxY-radiusBall) {
         if (state.ballRoute === routeBallBottomLeft) {
             state.ballRoute = routeBallTopLeft;
+            state.ballPosX += Math.abs(state.ballPosY - (state.clientMaxY-radiusBall));
         } else {
             state.ballRoute = routeBallTopRight;
+            state.ballPosX -= Math.abs(state.ballPosY - (state.clientMaxY-radiusBall));
         }
-    } else if (state.ballPosY < state.ballSize/2) {
+        state.ballPosY -= Math.abs(state.ballPosY - (state.clientMaxY-radiusBall));
+    } else if (state.ballPosY <= radiusBall) {
         if (state.ballRoute === routeBallTopLeft) {
             state.ballRoute = routeBallBottomLeft;
+            state.ballPosX += Math.abs(state.ballPosY-radiusBall);
         } else {
             state.ballRoute = routeBallBottomRight;
+            state.ballPosX -= Math.abs(state.ballPosY-radiusBall);
+        }
+        state.ballPosY += Math.abs(state.ballPosY-radiusBall);
+    }
+}
+
+const collisionTypeSide  = 0;
+const collisionTypeAngle = 1;
+
+let collisionBarrier = () => {
+    for (let i=0; i<state.currentStage.length;i++) {
+        let collision = false;
+        let collisionType = false;
+        let barrierSideLeftX = state.currentStage[i].barrierPosX*state.sizeBarrier;
+        let barrierSideTopY = state.currentStage[i].barrierPosY*state.sizeBarrier;
+        let barrierSideRightX = barrierSideLeftX+state.sizeBarrier;
+        let barrierSideBottomY = barrierSideTopY+state.sizeBarrier;
+        let radiusBall = state.ballSize/2;
+
+        if (barrierSideLeftX - radiusBall < state.ballPosX && state.ballPosX < barrierSideRightX + radiusBall) {
+            if (barrierSideTopY - radiusBall < state.ballPosY && state.ballPosY < barrierSideBottomY+radiusBall) {
+                collision = true;
+                collisionType = collisionTypeSide;
+            }
+        }
+
+        if(collision) {
+            if (--state.currentStage[i].barrierHealth < 1) {
+                state.currentStage.splice(i,1);  
+                break;
+            }
+            if (collisionType === collisionTypeSide) {
+                if ((Math.abs((barrierSideLeftX - radiusBall) - state.ballPosX) <= radiusBall || Math.abs(barrierSideLeftX - state.ballPosX) <= radiusBall) && 
+                    (state.ballRoute === routeBallTopRight || state.ballRoute === routeBallBottomRight)) {
+                        if (state.ballRoute === routeBallTopRight) {
+                            state.ballRoute = routeBallTopLeft;
+                            state.ballPosY += Math.abs((barrierSideLeftX - radiusBall) - state.ballPosX);
+                        } else {
+                            state.ballRoute = routeBallBottomLeft;
+                            state.ballPosY -= Math.abs((barrierSideLeftX - radiusBall) - state.ballPosX);
+                        }
+                        state.ballPosX -= Math.abs((barrierSideLeftX - radiusBall) - state.ballPosX);
+                } else if ((Math.abs((barrierSideRightX + radiusBall) - state.ballPosX) <= radiusBall || Math.abs(barrierSideRightX  - state.ballPosX) <= radiusBall) && 
+                    (state.ballRoute === routeBallTopLeft || state.ballRoute === routeBallBottomLeft)) {
+                        if (state.ballRoute === routeBallTopLeft) {
+                            state.ballRoute = routeBallTopRight;
+                            state.ballPosY += Math.abs((barrierSideRightX + radiusBall) - state.ballPosX);
+                        } else {
+                            state.ballRoute = routeBallBottomRight;
+                            state.ballPosY -= Math.abs((barrierSideRightX + radiusBall) - state.ballPosX);
+                        }
+                        state.ballPosX += Math.abs((barrierSideRightX + radiusBall) - state.ballPosX);
+                } else if ((Math.abs((barrierSideTopY - radiusBall) - state.ballPosY) <= radiusBall || Math.abs(barrierSideTopY - state.ballPosY) <= radiusBall) && 
+                    (state.ballRoute === routeBallBottomLeft || state.ballRoute === routeBallBottomRight)) {
+                        if (state.ballRoute === routeBallBottomLeft) {
+                            state.ballRoute = routeBallTopLeft;
+                            state.ballPosX += Math.abs((barrierSideTopY - radiusBall) - state.ballPosY);
+                        } else {
+                            state.ballRoute = routeBallTopRight;
+                            state.ballPosX -= Math.abs((barrierSideTopY - radiusBall) - state.ballPosY);
+                        }
+                        state.ballPosY -= Math.abs((barrierSideTopY - radiusBall) - state.ballPosY);
+                } else if ((Math.abs((barrierSideBottomY + radiusBall) - state.ballPosY) <= radiusBall || Math.abs(barrierSideBottomY - state.ballPosY) <= radiusBall) && 
+                    (state.ballRoute === routeBallTopLeft || state.ballRoute === routeBallTopRight)) {
+                        if (state.ballRoute === routeBallTopLeft) {
+                            state.ballRoute = routeBallBottomLeft;
+                            state.ballPosX += Math.abs((barrierSideBottomY + radiusBall) - state.ballPosY);
+                        } else {
+                            state.ballRoute = routeBallBottomRight;
+                            state.ballPosX -= Math.abs((barrierSideBottomY + radiusBall) - state.ballPosY);
+                        }
+                        state.ballPosY += Math.abs((barrierSideBottomY + radiusBall) - state.ballPosY);
+                }
+            }
         }
     }
 }
 
+let createNewStage = () => {
+    state.currentStage = [];
+    for (let i=0;i<state.stage*state.amountBarrierOnLevel;i++) {
+        createNewBarrierBox();  
+    }
+}
+
 let createNewBarrierBox = () => {
+    let barrierPosX = nRand(state.clientMaxX/state.sizeBarrier);
+    let barrierPosY = nRand(state.clientMaxY/(state.sizeBarrier*2));
+    let barrierHealth = state.stage*state.healthbarrierOnLevel;
+    let barrierCollision = false;
+    for (i=0;i<state.currentStage.length;i++) {
+        if (state.currentStage[i].barrierPosX === barrierPosX && state.currentStage[i].barrierPosY === barrierPosY ) {
+            barrierCollision = true;
+        }
+    }
+
+    if (barrierCollision == false) {
+        state.currentStage[state.currentStage.length] = {
+            "barrierPosX": barrierPosX,
+            "barrierPosY": barrierPosY,
+            "barrierHealth": barrierHealth
+        }
+    }
     // state.sizeBarrier
 }
 

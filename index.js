@@ -2,6 +2,8 @@
 const typeGameStop  = 0;
 const typeGamePlay  = 1;
 const typeGamePause = 2;
+const typeGameWin   = 3;
+const typeGameFail  = 4;
 // Route ball
 const routeBallTopRight = 0;
 const routeBallTopLeft = 1;
@@ -18,10 +20,13 @@ let state = {
 	clientMinY: 0,
 	clientMaxX: 600,
     clientMaxY: 800,
-    coefficientSpeed: 40,
+    baseSpeedBall: 200,
+    coefficientSpeed: 20,
+    totalPoint: 0,
+    maxStage: 50,
 // barrier
     sizeBarrier: 40,
-    healthbarrierOnLevel: 100,
+    healthbarrierOnLevel: 5,
     amountBarrierOnLevel: 5,
 // Parameters rocket
     racketPos: 350,
@@ -37,7 +42,7 @@ let state = {
     ballSpeedY: 0,
     ballRoute: routeBallTopRight,
 // Levels
-    stage: 5,
+    stage: 1,
     currentStage: [],
 }
 
@@ -56,7 +61,7 @@ window.onload = () => {
         } 
         state.racketPos = pos;
 
-        if (state.statusGame === typeGameStop) {
+        if (state.statusGame === typeGameStop || state.statusGame === typeGameFail || state.statusGame === typeGameWin) {
             state.ballPosY = state.clientMaxY - state.ballSize;
             state.ballPosX = pos - state.racketLong/2;
         } 
@@ -78,14 +83,14 @@ window.onload = () => {
 
     getElem("btnPreviousStage").onclick = () => {
         btnStop();
-        if (--state.stage < 1) {state.stage = 10;}
+        if (--state.stage < 1) {state.stage = state.maxStage;}
         setLevel(state.stage);
         createNewStage();
     }
 
     getElem("btnNextStage").onclick = () => {
         btnStop();
-        state.stage++;
+        if (++state.stage > state.maxStage) {state.stage = 1};
         setLevel(state.stage);
         createNewStage();
     }
@@ -97,7 +102,14 @@ setInterval(() => {
  ,1000/state.renderFrame);
 
 let btnStartOnClick = () => {
-    if (state.statusGame === typeGameStop) {
+
+    if (state.statusGame === typeGameFail || state.statusGame === typeGameWin) {
+        if (state.statusGame === typeGameWin) {
+            state.stage++;
+        }
+        state.statusGame = typeGameStop;
+        createNewStage();
+    } else if (state.statusGame === typeGameStop ) {
         state.statusGame = typeGamePlay;
         setValue("btnStart","Pause");
         btnNewGame();
@@ -123,7 +135,7 @@ let render = () => {
 
         for (let i=0;i<state.currentStage.length;i++) {
             ctx.strokeStyle = "#6eeb48";
-            ctx.strokeRect(state.currentStage[i].barrierPosX*state.sizeBarrier, state.currentStage[i].barrierPosY*state.sizeBarrier, state.sizeBarrier, state.sizeBarrier);
+            ctx.strokeRect(state.currentStage[i].barrierPosX*state.sizeBarrier+2, state.currentStage[i].barrierPosY*state.sizeBarrier+2, state.sizeBarrier-4, state.sizeBarrier-4);
 
             ctx.textAlign="center";
             ctx.textBaseline="middle";
@@ -135,11 +147,33 @@ let render = () => {
         ctx.fillStyle = "#5aecf1";
         ctx.arc(state.ballPosX, state.ballPosY,state.ballSize/2,0,finalRad,true);
         ctx.fill();
+
+        let setAttrPhrase = () => {
+            ctx.textAlign="center";
+            ctx.textBaseline="middle";
+            ctx.font="50px Arial";
+        }
+
+        if (state.statusGame === typeGameWin) {
+            setAttrPhrase();
+            ctx.fillText("You Win!",state.clientMaxX/2,(state.clientMaxY*3)/4);
+        }
+
+        if (state.statusGame === typeGameFail) {
+            setAttrPhrase();
+            ctx.fillText("You Fail!",state.clientMaxX/2,(state.clientMaxY*3)/4);
+        }
+
     }
 
     drawFigures();
 
+    if (state.statusGame === typeGamePlay && state.currentStage.length === 0) {
+        state.statusGame = typeGameWin;
+    }
+
     if (state.statusGame === typeGamePlay) {
+
         moveBall();
     //    drawFigures();
         collisionWall();
@@ -154,10 +188,13 @@ let btnNewGame = () => {
         state.ballRoute = routeBallTopRight;
     }
     
-    state.ballSpeedX = 500 + state.stage * state.coefficientSpeed;
-    state.ballSpeedY = 500 + state.stage * state.coefficientSpeed;
+    state.totalPoint = 0;
+
+    state.ballSpeedX = state.baseSpeedBall + state.stage * state.coefficientSpeed;
+    state.ballSpeedY = state.baseSpeedBall + state.stage * state.coefficientSpeed;
     setInner("speedGame","Speed: "+state.ballSpeedX);
     setInner("levelGame","Level: "+state.stage);
+    setInner("pointGame","Point: "+state.totalPoint);
 }
 
 let btnStop = () => {
@@ -172,17 +209,17 @@ let moveBall = () => {
     let speedY = nDouble(state.ballSpeedY/state.renderFrame,3);
 
     if (state.ballRoute === routeBallTopLeft) {
-        state.ballPosX -= nDouble(state.ballSpeedX/state.renderFrame,3);  
-        state.ballPosY -= nDouble(state.ballSpeedY/state.renderFrame,3);
+        state.ballPosX -= speedX;  
+        state.ballPosY -= speedY;
     } else if (state.ballRoute === routeBallTopRight) {
-        state.ballPosX += nDouble(state.ballSpeedX/state.renderFrame,3);  
-        state.ballPosY -= nDouble(state.ballSpeedY/state.renderFrame,3);
+        state.ballPosX += speedX;  
+        state.ballPosY -= speedY;
     } else if (state.ballRoute === routeBallBottomLeft) {
-        state.ballPosX -= nDouble(state.ballSpeedX/state.renderFrame,3);  
-        state.ballPosY += nDouble(state.ballSpeedY/state.renderFrame,3);
+        state.ballPosX -= speedX;  
+        state.ballPosY += speedY;
     } else if (state.ballRoute === routeBallBottomRight) {
-        state.ballPosX += nDouble(state.ballSpeedX/state.renderFrame,3);  
-        state.ballPosY += nDouble(state.ballSpeedY/state.renderFrame,3);
+        state.ballPosX += speedX;  
+        state.ballPosY += speedY;
     }
 }
 
@@ -207,7 +244,10 @@ let collisionWall = () => {
             state.ballPosY -= Math.abs(state.ballPosX-radiusBall);
         }
         state.ballPosX += Math.abs(state.ballPosX-radiusBall);
-    } else if (state.ballPosY >= state.clientMaxY-radiusBall) {
+    } else if (state.ballPosY >= state.clientMaxY-radiusBall-state.racketDepth-3) {
+        if (state.ballPosX < state.racketPos-state.racketLong || state.ballPosX > state.racketPos) {
+            state.statusGame = typeGameFail;
+        }
         if (state.ballRoute === routeBallBottomLeft) {
             state.ballRoute = routeBallTopLeft;
             state.ballPosX += Math.abs(state.ballPosY - (state.clientMaxY-radiusBall));
@@ -249,6 +289,8 @@ let collisionBarrier = () => {
         }
 
         if(collision) {
+            state.totalPoint++;
+            setInner("pointGame","Point: "+state.totalPoint);
             if (--state.currentStage[i].barrierHealth < 1) {
                 state.currentStage.splice(i,1);  
                 break;
